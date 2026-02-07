@@ -36,15 +36,19 @@ export const HeartSuccess: React.FC = () => {
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
-        contents: `Suggest one random, highly-rated ${genre} movie. Format the output exactly as: "TITLE | DESCRIPTION" where description is one short sentence. No markdown. Random seed: ${Math.random()}`,
+        contents: `List 5 different highly-rated ${genre} movies for a Valentine's date night. For each, format as: "TITLE | DESCRIPTION". One per line. No markdown or numbering.`,
       });
       const text = response.text?.trim() || "";
-      const [title, desc] = text.split('|').map(s => s.trim());
-      if (title && desc) {
-        setSuggestedMovie({ title, desc });
-      } else {
-        setSuggestedMovie({ title: text || "About Time", desc: "A beautiful story about love and moments." });
-      }
+      const movies = text.split('\n').filter(line => line.includes('|'));
+          if (movies.length > 0) {
+            const randomMovie = movies[Math.floor(Math.random() * movies.length)];
+            const [title, desc] = randomMovie.split('|').map(s => s.trim());
+            if (title && desc) {
+              setSuggestedMovie({ title, desc });
+            } else {
+            setSuggestedMovie({ title: text || "About Time", desc: "A beautiful story about love and moments." });
+            }
+          }
     } catch (error) {
       setSuggestedMovie({ title: "About Time", desc: "A beautiful story about love and moments." });
     } finally {
