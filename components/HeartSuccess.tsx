@@ -36,7 +36,7 @@ export const HeartSuccess: React.FC = () => {
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
-        contents: `Suggest one random, highly-rated ${genre} movie for a Valentine's date night. Format the output exactly as: "TITLE | DESCRIPTION" where description is one short sentence. No markdown.`,
+        contents: `Suggest one random, highly-rated ${genre} movie. Format the output exactly as: "TITLE | DESCRIPTION" where description is one short sentence. No markdown. Random seed: ${Math.random()}`,
       });
       const text = response.text?.trim() || "";
       const [title, desc] = text.split('|').map(s => s.trim());
