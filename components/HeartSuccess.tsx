@@ -1,8 +1,12 @@
-
 import React, { useEffect, useState } from 'react';
 import { GoogleGenAI } from "@google/genai";
 
 type Genre = 'Comedy' | 'Action' | 'Horror';
+
+interface UploadedPhoto {
+  url: string;
+  uploadedAt: number;
+}
 
 export const HeartSuccess: React.FC = () => {
   const [poem, setPoem] = useState<string>("");
@@ -10,6 +14,11 @@ export const HeartSuccess: React.FC = () => {
   const [showMovieUI, setShowMovieUI] = useState(false);
   const [suggestedMovie, setSuggestedMovie] = useState<{ title: string; desc: string } | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  
+  // Photo upload states
+  const [uploadedPhotos, setUploadedPhotos] = useState<UploadedPhoto[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [showPhotoUI, setShowPhotoUI] = useState(false);
 
   useEffect(() => {
     const fetchPoem = async () => {
@@ -27,7 +36,52 @@ export const HeartSuccess: React.FC = () => {
       }
     };
     fetchPoem();
+    loadPhotos();
   }, []);
+
+  const loadPhotos = async () => {
+    try {
+      const response = await fetch('/api/photos');
+      if (response.ok) {
+        const photos = await response.json();
+        setUploadedPhotos(photos);
+      }
+    } catch (error) {
+      console.error('Error loading photos:', error);
+    }
+  };
+
+  const handlePhotoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    try {
+      // Send file directly as blob with correct content type
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        headers: {
+          'Content-Type': file.type,
+        },
+        body: file,
+      });
+
+      if (response.ok) {
+        const newPhoto = await response.json();
+        setUploadedPhotos(prev => [newPhoto, ...prev]);
+        setShowPhotoUI(true);
+      } else {
+        const error = await response.json();
+        console.error('Upload failed:', error);
+        alert('Upload failed. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error uploading photo:', error);
+      alert('Upload failed. Please try again.');
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const generateMovie = async (genre: Genre) => {
     setIsGenerating(true);
@@ -40,15 +94,15 @@ export const HeartSuccess: React.FC = () => {
       });
       const text = response.text?.trim() || "";
       const movies = text.split('\n').filter(line => line.includes('|'));
-          if (movies.length > 0) {
-            const randomMovie = movies[Math.floor(Math.random() * movies.length)];
-            const [title, desc] = randomMovie.split('|').map(s => s.trim());
-            if (title && desc) {
-              setSuggestedMovie({ title, desc });
-            } else {
-            setSuggestedMovie({ title: text || "About Time", desc: "A beautiful story about love and moments." });
-            }
-          }
+      if (movies.length > 0) {
+        const randomMovie = movies[Math.floor(Math.random() * movies.length)];
+        const [title, desc] = randomMovie.split('|').map(s => s.trim());
+        if (title && desc) {
+          setSuggestedMovie({ title, desc });
+        } else {
+          setSuggestedMovie({ title: text || "About Time", desc: "A beautiful story about love and moments." });
+        }
+      }
     } catch (error) {
       setSuggestedMovie({ title: "About Time", desc: "A beautiful story about love and moments." });
     } finally {
@@ -58,7 +112,31 @@ export const HeartSuccess: React.FC = () => {
 
   return (
     <div className="relative flex flex-col items-center justify-center py-12 text-center animate-[fadeIn_1s_ease-out]">
-      {/* Movie Button - Positioned further right and dark red */}
+      {/* Photo Upload Button - Positioned top left */}
+      <div className="absolute top-[-50px] left-[-20px] md:left-[-80px] z-20">
+        <label className="bg-transparent border-2 border-rose-900/30 text-rose-900 hover:text-rose-700 hover:border-rose-900/60 px-5 py-1.5 rounded-full text-xl font-handwritten transition-all transform hover:rotate-[-3deg] active:scale-95 shadow-sm cursor-pointer inline-block">
+          {uploading ? '📤...' : '📸 Photo'}
+          <input
+            type="file"
+            accept="image/*"
+            capture="environment"
+            onChange={handlePhotoUpload}
+            className="hidden"
+            disabled={uploading}
+          />
+        </label>
+        
+        {uploadedPhotos.length > 0 && (
+          <button 
+            onClick={() => setShowPhotoUI(!showPhotoUI)}
+            className="mt-2 text-sm text-rose-400 hover:text-rose-600 font-sans"
+          >
+            {showPhotoUI ? 'Hide' : `View ${uploadedPhotos.length}`}
+          </button>
+        )}
+      </div>
+
+      {/* Movie Button - Positioned top right */}
       <div className="absolute top-[-50px] right-[-20px] md:right-[-80px] z-20">
         <button 
           onClick={() => setShowMovieUI(!showMovieUI)}
@@ -88,6 +166,25 @@ export const HeartSuccess: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Photo Gallery */}
+      {showPhotoUI && uploadedPhotos.length > 0 && (
+        <div className="absolute top-20 left-1/2 transform -translate-x-1/2 bg-white/95 backdrop-blur-sm border-2 border-rose-200 p-6 rounded-2xl shadow-2xl max-w-md w-full max-h-[60vh] overflow-y-auto z-30 animate-[fadeIn_0.3s_ease-out]">
+          <h3 className="text-2xl font-handwritten text-rose-900 mb-4">Our Memories 💕</h3>
+          <div className="grid grid-cols-2 gap-3">
+            {uploadedPhotos.map((photo, index) => (
+              <div key={index} className="relative group">
+                <img 
+                  src={photo.url} 
+                  alt={`Memory ${index + 1}`}
+                  className="w-full h-32 object-cover rounded-lg shadow-md border-2 border-rose-100 group-hover:border-rose-300 transition-all"
+                />
+                <div className="absolute inset-0 bg-rose-900/0 group-hover:bg-rose-900/10 rounded-lg transition-all" />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="relative mb-12">
         <svg 
