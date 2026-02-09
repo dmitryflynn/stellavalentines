@@ -18,7 +18,9 @@ export const HeartSuccess: React.FC = () => {
   // Photo upload states
   const [uploadedPhotos, setUploadedPhotos] = useState<UploadedPhoto[]>([]);
   const [uploading, setUploading] = useState(false);
-  const [showPhotoUI, setShowPhotoUI] = useState(false);
+  
+  // Admin reset states
+  const [showResetUI, setShowResetUI] = useState(false);
 
   useEffect(() => {
     const fetchPoem = async () => {
@@ -69,7 +71,6 @@ export const HeartSuccess: React.FC = () => {
       if (response.ok) {
         const newPhoto = await response.json();
         setUploadedPhotos(prev => [newPhoto, ...prev]);
-        setShowPhotoUI(true);
       } else {
         const error = await response.json();
         console.error('Upload failed:', error);
@@ -80,6 +81,40 @@ export const HeartSuccess: React.FC = () => {
       alert('Upload failed. Please try again.');
     } finally {
       setUploading(false);
+      // Reset the input so the same file can be uploaded again
+      event.target.value = '';
+    }
+  };
+
+  const handleReset = () => {
+    if (window.confirm('⚠️ RESET EVERYTHING?\n\nThis will:\n- Clear localStorage (reset questions)\n- Require page refresh\n\nNote: Photos in Vercel Blob will stay (use "Delete All Photos" to remove them)\n\nContinue?')) {
+      // Clear localStorage
+      localStorage.clear();
+      alert('✅ App reset! Please refresh the page.');
+      // Optionally auto-refresh
+      // window.location.reload();
+    }
+  };
+
+  const handleDeleteAllPhotos = async () => {
+    if (window.confirm('⚠️ DELETE ALL PHOTOS?\n\nThis will permanently delete ALL photos from Vercel Blob storage.\n\nThis CANNOT be undone!\n\nContinue?')) {
+      try {
+        const response = await fetch('/api/delete-all', {
+          method: 'DELETE',
+        });
+        
+        if (response.ok) {
+          const result = await response.json();
+          alert(`✅ Deleted ${result.deletedCount} photos!`);
+          setUploadedPhotos([]);
+          setShowResetUI(false);
+        } else {
+          alert('❌ Failed to delete photos. Check console.');
+        }
+      } catch (error) {
+        console.error('Error deleting photos:', error);
+        alert('❌ Error deleting photos. Check console.');
+      }
     }
   };
 
@@ -111,123 +146,185 @@ export const HeartSuccess: React.FC = () => {
   };
 
   return (
-    <div className="relative flex flex-col items-center justify-center py-12 text-center animate-[fadeIn_1s_ease-out]">
-      {/* Photo Upload Button - Positioned top left */}
-      <div className="absolute top-[-50px] left-[-20px] md:left-[-80px] z-20">
-        <label className="bg-transparent border-2 border-rose-900/30 text-rose-900 hover:text-rose-700 hover:border-rose-900/60 px-5 py-1.5 rounded-full text-xl font-handwritten transition-all transform hover:rotate-[-3deg] active:scale-95 shadow-sm cursor-pointer inline-block">
-          {uploading ? '📤...' : '📸 Photo'}
-          <input
-            type="file"
-            accept="image/*"
-            capture="environment"
-            onChange={handlePhotoUpload}
-            className="hidden"
-            disabled={uploading}
-          />
-        </label>
-        
-        {uploadedPhotos.length > 0 && (
-          <button 
-            onClick={() => setShowPhotoUI(!showPhotoUI)}
-            className="mt-2 text-sm text-rose-400 hover:text-rose-600 font-sans"
-          >
-            {showPhotoUI ? 'Hide' : `View ${uploadedPhotos.length}`}
-          </button>
-        )}
-      </div>
-
-      {/* Movie Button - Positioned top right */}
-      <div className="absolute top-[-50px] right-[-20px] md:right-[-80px] z-20">
-        <button 
-          onClick={() => setShowMovieUI(!showMovieUI)}
-          className="bg-transparent border-2 border-rose-900/30 text-rose-900 hover:text-rose-700 hover:border-rose-900/60 px-5 py-1.5 rounded-full text-xl font-handwritten transition-all transform hover:rotate-3 active:scale-95 shadow-sm"
+    <div className="relative min-h-screen flex flex-col items-center justify-start py-12 px-4">
+      {/* Hidden Admin Reset Button - Top left corner, very subtle */}
+      <div className="absolute top-2 left-2 z-50">
+        <button
+          onClick={() => setShowResetUI(!showResetUI)}
+          className="text-xs text-gray-300 hover:text-gray-400 opacity-20 hover:opacity-40 transition-opacity"
+          title="Admin Reset"
         >
-          Movie?
+          ⚙️
         </button>
-        
-        {showMovieUI && (
-          <div className="absolute top-14 right-0 bg-white/90 backdrop-blur-sm border border-rose-200 p-4 rounded-xl shadow-xl w-48 animate-[fadeIn_0.3s_ease-out]">
-            <p className="text-sm mb-2 opacity-60 font-sans uppercase tracking-widest text-rose-900 font-bold">Pick a vibe:</p>
-            <div className="flex flex-col gap-2">
-              {(['Comedy', 'Action', 'Horror'] as Genre[]).map((genre) => (
-                <button
-                  key={genre}
-                  onClick={() => {
-                    generateMovie(genre);
-                    setShowMovieUI(false);
-                  }}
-                  disabled={isGenerating}
-                  className="text-left text-2xl text-rose-900 hover:text-rose-600 transition-colors disabled:opacity-30 font-handwritten"
-                >
-                  - {genre}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Photo Gallery */}
-      {showPhotoUI && uploadedPhotos.length > 0 && (
-        <div className="absolute top-20 left-1/2 transform -translate-x-1/2 bg-white/95 backdrop-blur-sm border-2 border-rose-200 p-6 rounded-2xl shadow-2xl max-w-md w-full max-h-[60vh] overflow-y-auto z-30 animate-[fadeIn_0.3s_ease-out]">
-          <h3 className="text-2xl font-handwritten text-rose-900 mb-4">Our Memories 💕</h3>
-          <div className="grid grid-cols-2 gap-3">
-            {uploadedPhotos.map((photo, index) => (
-              <div key={index} className="relative group">
-                <img 
-                  src={photo.url} 
-                  alt={`Memory ${index + 1}`}
-                  className="w-full h-32 object-cover rounded-lg shadow-md border-2 border-rose-100 group-hover:border-rose-300 transition-all"
-                />
-                <div className="absolute inset-0 bg-rose-900/0 group-hover:bg-rose-900/10 rounded-lg transition-all" />
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      <div className="relative mb-12">
-        <svg 
-          viewBox="0 0 100 100" 
-          className="w-64 h-64 md:w-80 md:h-80 drop-shadow-xl animate-[heartArrival_1s_cubic-bezier(0.175, 0.885, 0.32, 1.275)_forwards]"
-        >
-          <path
-            d="M50 88 L43 82 C16 56 1 42 1 25 C1 11 12 1 26 1 C34 1 42 4 47 11 C52 4 60 1 68 1 C82 1 94 11 94 25 C94 42 78 56 51 82 L50 88 Z"
-            className="fill-rose-600"
-          />
-        </svg>
-      </div>
-
-      <div className="space-y-8 px-4">
-        <h1 className="text-7xl md:text-8xl text-rose-700 font-handwritten leading-tight drop-shadow-sm">
-          I Love You!
-        </h1>
-        
-        <div className="min-h-[120px] flex flex-col justify-center">
-          {isGenerating ? (
-            <div className="text-3xl text-rose-400 animate-pulse font-handwritten">
-              Thinking of a perfect movie...
-            </div>
-          ) : suggestedMovie ? (
-            <div className="animate-[fadeIn_0.5s_ease-out]">
-              <div className="text-4xl text-rose-800 font-bold font-handwritten mb-2">
-                🎬 {suggestedMovie.title}
-              </div>
-              <div className="text-2xl text-slate-700 font-handwritten max-w-md mx-auto italic">
-                "{suggestedMovie.desc}"
-              </div>
-              <button 
-                onClick={() => setSuggestedMovie(null)}
-                className="mt-4 text-sm text-rose-400 hover:text-rose-600 font-sans uppercase tracking-tighter"
+        {showResetUI && (
+          <div className="absolute top-8 left-0 bg-white border-2 border-red-300 p-3 rounded-lg shadow-xl w-52 z-50">
+            <p className="text-xs text-red-600 mb-2 font-sans font-bold">ADMIN PANEL</p>
+            <div className="space-y-2">
+              <button
+                onClick={handleReset}
+                className="w-full bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded text-sm font-sans transition-all"
               >
-                (Show original poem)
+                🔄 Reset Questions
+              </button>
+              <button
+                onClick={handleDeleteAllPhotos}
+                className="w-full bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded text-sm font-sans transition-all"
+              >
+                🗑️ Delete All Photos
               </button>
             </div>
-          ) : !loading ? (
-            <div className="text-3xl md:text-4xl text-slate-800 font-handwritten leading-relaxed max-w-xl mx-auto italic opacity-90 animate-[fadeIn_1.5s_ease-in_forwards]">
-               {poem}
+            <p className="text-[10px] text-gray-500 mt-2 font-sans">
+              Reset = localStorage only<br/>
+              Delete = Removes all photos from Vercel Blob
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Main Content */}
+      <div className="relative flex flex-col items-center text-center animate-[fadeIn_1s_ease-out] mb-12">
+        {/* Movie Button - Positioned top right */}
+        <div className="absolute top-[-50px] right-[-20px] md:right-[-80px] z-20">
+          <button 
+            onClick={() => setShowMovieUI(!showMovieUI)}
+            className="bg-transparent border-2 border-rose-900/30 text-rose-900 hover:text-rose-700 hover:border-rose-900/60 px-5 py-1.5 rounded-full text-xl font-handwritten transition-all transform hover:rotate-3 active:scale-95 shadow-sm"
+          >
+            Movie?
+          </button>
+          
+          {showMovieUI && (
+            <div className="absolute top-14 right-0 bg-white/90 backdrop-blur-sm border border-rose-200 p-4 rounded-xl shadow-xl w-48 animate-[fadeIn_0.3s_ease-out]">
+              <p className="text-sm mb-2 opacity-60 font-sans uppercase tracking-widest text-rose-900 font-bold">Pick a vibe:</p>
+              <div className="flex flex-col gap-2">
+                {(['Comedy', 'Action', 'Horror'] as Genre[]).map((genre) => (
+                  <button
+                    key={genre}
+                    onClick={() => {
+                      generateMovie(genre);
+                      setShowMovieUI(false);
+                    }}
+                    disabled={isGenerating}
+                    className="text-left text-2xl text-rose-900 hover:text-rose-600 transition-colors disabled:opacity-30 font-handwritten"
+                  >
+                    - {genre}
+                  </button>
+                ))}
+              </div>
             </div>
-          ) : null}
+          )}
+        </div>
+
+        <div className="relative mb-8">
+          <svg 
+            viewBox="0 0 100 100" 
+            className="w-48 h-48 md:w-64 md:h-64 drop-shadow-xl animate-[heartArrival_1s_cubic-bezier(0.175, 0.885, 0.32, 1.275)_forwards]"
+          >
+            <path
+              d="M50 88 L43 82 C16 56 1 42 1 25 C1 11 12 1 26 1 C34 1 42 4 47 11 C52 4 60 1 68 1 C82 1 94 11 94 25 C94 42 78 56 51 82 L50 88 Z"
+              className="fill-rose-600"
+            />
+          </svg>
+        </div>
+
+        <div className="space-y-6">
+          <h1 className="text-6xl md:text-7xl text-rose-700 font-handwritten leading-tight drop-shadow-sm">
+            I Love You!
+          </h1>
+          
+          <div className="min-h-[100px] flex flex-col justify-center">
+            {isGenerating ? (
+              <div className="text-2xl text-rose-400 animate-pulse font-handwritten">
+                Thinking of a perfect movie...
+              </div>
+            ) : suggestedMovie ? (
+              <div className="animate-[fadeIn_0.5s_ease-out]">
+                <div className="text-3xl text-rose-800 font-bold font-handwritten mb-2">
+                  🎬 {suggestedMovie.title}
+                </div>
+                <div className="text-xl text-slate-700 font-handwritten max-w-md mx-auto italic">
+                  "{suggestedMovie.desc}"
+                </div>
+                <button 
+                  onClick={() => setSuggestedMovie(null)}
+                  className="mt-4 text-sm text-rose-400 hover:text-rose-600 font-sans uppercase tracking-tighter"
+                >
+                  (Show original poem)
+                </button>
+              </div>
+            ) : !loading ? (
+              <div className="text-2xl md:text-3xl text-slate-800 font-handwritten leading-relaxed max-w-xl mx-auto italic opacity-90 animate-[fadeIn_1.5s_ease-in_forwards]">
+                 {poem}
+              </div>
+            ) : null}
+          </div>
+        </div>
+      </div>
+
+      {/* Photo Wall Section */}
+      <div className="w-full max-w-4xl mt-8">
+        <div className="bg-white/60 backdrop-blur-sm border-2 border-rose-200 rounded-3xl p-8 shadow-lg">
+          {/* Photo Wall Header */}
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-4xl font-handwritten text-rose-900 flex items-center gap-3">
+              📸 Our Memories
+              {uploadedPhotos.length > 0 && (
+                <span className="text-2xl text-rose-400">({uploadedPhotos.length})</span>
+              )}
+            </h2>
+            
+            {/* Upload Button */}
+            <label className="bg-rose-500 hover:bg-rose-600 text-white px-6 py-3 rounded-full text-xl font-handwritten transition-all active:scale-95 shadow-md cursor-pointer inline-flex items-center gap-2">
+              {uploading ? (
+                <>
+                  <span className="animate-spin">⏳</span>
+                  <span>Uploading...</span>
+                </>
+              ) : (
+                <>
+                  <span>📷</span>
+                  <span>Add Photo</span>
+                </>
+              )}
+              <input
+                type="file"
+                accept="image/*"
+                capture="environment"
+                onChange={handlePhotoUpload}
+                className="hidden"
+                disabled={uploading}
+              />
+            </label>
+          </div>
+
+          {/* Photo Grid */}
+          {uploadedPhotos.length > 0 ? (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {uploadedPhotos.map((photo, index) => (
+                <div 
+                  key={index} 
+                  className="relative group aspect-square animate-[fadeIn_0.5s_ease-out]"
+                  style={{ animationDelay: `${index * 0.1}s` }}
+                >
+                  <img 
+                    src={photo.url} 
+                    alt={`Memory ${index + 1}`}
+                    className="w-full h-full object-cover rounded-xl shadow-md border-4 border-white group-hover:border-rose-300 transition-all group-hover:scale-105 group-hover:shadow-xl"
+                  />
+                  {/* Polaroid-style date stamp */}
+                  <div className="absolute bottom-2 left-2 right-2 bg-white/90 backdrop-blur-sm px-2 py-1 rounded text-xs font-sans text-slate-600 text-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    {new Date(photo.uploadedAt).toLocaleDateString()}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-16">
+              <div className="text-6xl mb-4">💕</div>
+              <p className="text-2xl text-slate-400 font-handwritten">
+                No photos yet! Add your first memory
+              </p>
+            </div>
+          )}
         </div>
       </div>
 
