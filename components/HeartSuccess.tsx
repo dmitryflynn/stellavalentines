@@ -59,7 +59,6 @@ export const HeartSuccess: React.FC = () => {
 
     setUploading(true);
     try {
-      // Send file directly as blob with correct content type
       const response = await fetch('/api/upload', {
         method: 'POST',
         headers: {
@@ -81,18 +80,14 @@ export const HeartSuccess: React.FC = () => {
       alert('Upload failed. Please try again.');
     } finally {
       setUploading(false);
-      // Reset the input so the same file can be uploaded again
       event.target.value = '';
     }
   };
 
   const handleReset = () => {
     if (window.confirm('⚠️ RESET EVERYTHING?\n\nThis will:\n- Clear localStorage (reset questions)\n- Require page refresh\n\nNote: Photos in Vercel Blob will stay (use "Delete All Photos" to remove them)\n\nContinue?')) {
-      // Clear localStorage
       localStorage.clear();
       alert('✅ App reset! Please refresh the page.');
-      // Optionally auto-refresh
-      // window.location.reload();
     }
   };
 
@@ -146,9 +141,9 @@ export const HeartSuccess: React.FC = () => {
   };
 
   return (
-    <div className="relative min-h-screen flex flex-col items-center justify-start py-12 px-4">
-      {/* Hidden Admin Reset Button - Top left corner, very subtle */}
-      <div className="absolute top-2 left-2 z-50">
+    <div className="relative w-full max-w-4xl mx-auto px-4 py-6 md:py-12">
+      {/* Hidden Admin Reset Button - Top left corner */}
+      <div className="fixed top-2 left-2 z-50">
         <button
           onClick={() => setShowResetUI(!showResetUI)}
           className="text-xs text-gray-300 hover:text-gray-400 opacity-20 hover:opacity-40 transition-opacity"
@@ -181,43 +176,44 @@ export const HeartSuccess: React.FC = () => {
         )}
       </div>
 
-      {/* Main Content */}
-      <div className="relative flex flex-col items-center text-center animate-[fadeIn_1s_ease-out] mb-12">
-        {/* Movie Button - Positioned top right */}
-        <div className="absolute top-[-50px] right-[-20px] md:right-[-80px] z-20">
-          <button 
-            onClick={() => setShowMovieUI(!showMovieUI)}
-            className="bg-transparent border-2 border-rose-900/30 text-rose-900 hover:text-rose-700 hover:border-rose-900/60 px-5 py-1.5 rounded-full text-xl font-handwritten transition-all transform hover:rotate-3 active:scale-95 shadow-sm"
-          >
-            Movie?
-          </button>
-          
-          {showMovieUI && (
-            <div className="absolute top-14 right-0 bg-white/90 backdrop-blur-sm border border-rose-200 p-4 rounded-xl shadow-xl w-48 animate-[fadeIn_0.3s_ease-out]">
-              <p className="text-sm mb-2 opacity-60 font-sans uppercase tracking-widest text-rose-900 font-bold">Pick a vibe:</p>
-              <div className="flex flex-col gap-2">
-                {(['Comedy', 'Action', 'Horror'] as Genre[]).map((genre) => (
-                  <button
-                    key={genre}
-                    onClick={() => {
-                      generateMovie(genre);
-                      setShowMovieUI(false);
-                    }}
-                    disabled={isGenerating}
-                    className="text-left text-2xl text-rose-900 hover:text-rose-600 transition-colors disabled:opacity-30 font-handwritten"
-                  >
-                    - {genre}
-                  </button>
-                ))}
-              </div>
+      {/* Movie Button - Top right, close to edge */}
+      <div className="fixed top-4 right-4 z-20">
+        <button 
+          onClick={() => setShowMovieUI(!showMovieUI)}
+          className="bg-transparent border-2 border-rose-900/30 text-rose-900 hover:text-rose-700 hover:border-rose-900/60 px-3 py-1 md:px-5 md:py-1.5 rounded-full text-base md:text-xl font-handwritten transition-all transform hover:rotate-3 active:scale-95 shadow-sm"
+        >
+          Movie?
+        </button>
+        
+        {showMovieUI && (
+          <div className="absolute top-12 right-0 bg-white/95 backdrop-blur-sm border border-rose-200 p-4 rounded-xl shadow-xl w-40 md:w-48 animate-[fadeIn_0.3s_ease-out]">
+            <p className="text-xs mb-2 opacity-60 font-sans uppercase tracking-widest text-rose-900 font-bold">Pick a vibe:</p>
+            <div className="flex flex-col gap-2">
+              {(['Comedy', 'Action', 'Horror'] as Genre[]).map((genre) => (
+                <button
+                  key={genre}
+                  onClick={() => {
+                    generateMovie(genre);
+                    setShowMovieUI(false);
+                  }}
+                  disabled={isGenerating}
+                  className="text-left text-xl md:text-2xl text-rose-900 hover:text-rose-600 transition-colors disabled:opacity-30 font-handwritten"
+                >
+                  - {genre}
+                </button>
+              ))}
             </div>
-          )}
-        </div>
+          </div>
+        )}
+      </div>
 
-        <div className="relative mb-8">
+      {/* Main Content */}
+      <div className="relative flex flex-col items-center text-center animate-[fadeIn_1s_ease-out] mb-8 mt-4">
+        {/* Heart - Responsive sizing */}
+        <div className="relative mb-4 md:mb-8">
           <svg 
             viewBox="0 0 100 100" 
-            className="w-48 h-48 md:w-64 md:h-64 drop-shadow-xl animate-[heartArrival_1s_cubic-bezier(0.175, 0.885, 0.32, 1.275)_forwards]"
+            className="w-32 h-32 md:w-48 md:h-48 lg:w-64 lg:h-64 drop-shadow-xl animate-[heartArrival_1s_cubic-bezier(0.175, 0.885, 0.32, 1.275)_forwards]"
           >
             <path
               d="M50 88 L43 82 C16 56 1 42 1 25 C1 11 12 1 26 1 C34 1 42 4 47 11 C52 4 60 1 68 1 C82 1 94 11 94 25 C94 42 78 56 51 82 L50 88 Z"
@@ -226,22 +222,23 @@ export const HeartSuccess: React.FC = () => {
           </svg>
         </div>
 
-        <div className="space-y-6">
-          <h1 className="text-6xl md:text-7xl text-rose-700 font-handwritten leading-tight drop-shadow-sm">
+        {/* Text - Responsive sizing */}
+        <div className="space-y-4 md:space-y-6">
+          <h1 className="text-4xl md:text-6xl lg:text-7xl text-rose-700 font-handwritten leading-tight drop-shadow-sm">
             I Love You!
           </h1>
           
-          <div className="min-h-[100px] flex flex-col justify-center">
+          <div className="min-h-[80px] md:min-h-[100px] flex flex-col justify-center px-2">
             {isGenerating ? (
-              <div className="text-2xl text-rose-400 animate-pulse font-handwritten">
+              <div className="text-lg md:text-2xl text-rose-400 animate-pulse font-handwritten">
                 Thinking of a perfect movie...
               </div>
             ) : suggestedMovie ? (
               <div className="animate-[fadeIn_0.5s_ease-out]">
-                <div className="text-3xl text-rose-800 font-bold font-handwritten mb-2">
+                <div className="text-2xl md:text-3xl lg:text-4xl text-rose-800 font-bold font-handwritten mb-2">
                   🎬 {suggestedMovie.title}
                 </div>
-                <div className="text-xl text-slate-700 font-handwritten max-w-md mx-auto italic">
+                <div className="text-base md:text-xl lg:text-2xl text-slate-700 font-handwritten max-w-md mx-auto italic">
                   "{suggestedMovie.desc}"
                 </div>
                 <button 
@@ -252,7 +249,7 @@ export const HeartSuccess: React.FC = () => {
                 </button>
               </div>
             ) : !loading ? (
-              <div className="text-2xl md:text-3xl text-slate-800 font-handwritten leading-relaxed max-w-xl mx-auto italic opacity-90 animate-[fadeIn_1.5s_ease-in_forwards]">
+              <div className="text-lg md:text-2xl lg:text-3xl text-slate-800 font-handwritten leading-relaxed max-w-xl mx-auto italic opacity-90 animate-[fadeIn_1.5s_ease-in_forwards]">
                  {poem}
               </div>
             ) : null}
@@ -260,20 +257,20 @@ export const HeartSuccess: React.FC = () => {
         </div>
       </div>
 
-      {/* Photo Wall Section */}
-      <div className="w-full max-w-4xl mt-8">
-        <div className="bg-white/60 backdrop-blur-sm border-2 border-rose-200 rounded-3xl p-8 shadow-lg">
+      {/* Photo Wall Section - Mobile optimized */}
+      <div className="w-full mt-6 md:mt-8">
+        <div className="bg-white/60 backdrop-blur-sm border-2 border-rose-200 rounded-2xl md:rounded-3xl p-4 md:p-8 shadow-lg">
           {/* Photo Wall Header */}
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-4xl font-handwritten text-rose-900 flex items-center gap-3">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-4 md:mb-6">
+            <h2 className="text-2xl md:text-3xl lg:text-4xl font-handwritten text-rose-900 flex items-center gap-2 md:gap-3">
               📸 Our Memories
               {uploadedPhotos.length > 0 && (
-                <span className="text-2xl text-rose-400">({uploadedPhotos.length})</span>
+                <span className="text-lg md:text-2xl text-rose-400">({uploadedPhotos.length})</span>
               )}
             </h2>
             
             {/* Upload Button */}
-            <label className="bg-rose-500 hover:bg-rose-600 text-white px-6 py-3 rounded-full text-xl font-handwritten transition-all active:scale-95 shadow-md cursor-pointer inline-flex items-center gap-2">
+            <label className="bg-rose-500 hover:bg-rose-600 text-white px-4 py-2 md:px-6 md:py-3 rounded-full text-base md:text-xl font-handwritten transition-all active:scale-95 shadow-md cursor-pointer inline-flex items-center gap-2 whitespace-nowrap">
               {uploading ? (
                 <>
                   <span className="animate-spin">⏳</span>
@@ -298,7 +295,7 @@ export const HeartSuccess: React.FC = () => {
 
           {/* Photo Grid */}
           {uploadedPhotos.length > 0 ? (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
               {uploadedPhotos.map((photo, index) => (
                 <div 
                   key={index} 
@@ -308,7 +305,7 @@ export const HeartSuccess: React.FC = () => {
                   <img 
                     src={photo.url} 
                     alt={`Memory ${index + 1}`}
-                    className="w-full h-full object-cover rounded-xl shadow-md border-4 border-white group-hover:border-rose-300 transition-all group-hover:scale-105 group-hover:shadow-xl"
+                    className="w-full h-full object-cover rounded-lg md:rounded-xl shadow-md border-3 md:border-4 border-white group-hover:border-rose-300 transition-all group-hover:scale-105 group-hover:shadow-xl"
                   />
                   {/* Polaroid-style date stamp */}
                   <div className="absolute bottom-2 left-2 right-2 bg-white/90 backdrop-blur-sm px-2 py-1 rounded text-xs font-sans text-slate-600 text-center opacity-0 group-hover:opacity-100 transition-opacity">
@@ -318,9 +315,9 @@ export const HeartSuccess: React.FC = () => {
               ))}
             </div>
           ) : (
-            <div className="text-center py-16">
-              <div className="text-6xl mb-4">💕</div>
-              <p className="text-2xl text-slate-400 font-handwritten">
+            <div className="text-center py-12 md:py-16">
+              <div className="text-5xl md:text-6xl mb-4">💕</div>
+              <p className="text-xl md:text-2xl text-slate-400 font-handwritten">
                 No photos yet! Add your first memory
               </p>
             </div>
