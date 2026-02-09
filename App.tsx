@@ -1,341 +1,118 @@
-import React, { useEffect, useState } from 'react';
-import { GoogleGenAI } from "@google/genai";
+import React, { useState, useEffect } from 'react';
+import { Step } from './types';
+import { QUESTIONS } from './constants';
+import { NotebookPaper } from './components/NotebookPaper';
+import { InputBox } from './components/InputBox';
+import { ValentineQuestion } from './components/ValentineQuestion';
+import { HeartSuccess } from './components/HeartSuccess';
 
-type Genre = 'Comedy' | 'Action' | 'Horror';
+const VISITED_KEY = 'valentine-visited';
 
-interface UploadedPhoto {
-  url: string;
-  uploadedAt: number;
-}
+const App: React.FC = () => {
+  const [currentStep, setCurrentStep] = useState<Step>(Step.DESTINATION);
+  const [errorCount, setErrorCount] = useState(0);
+  const [isError, setIsError] = useState(false);
 
-export const HeartSuccess: React.FC = () => {
-  const [poem, setPoem] = useState<string>("");
-  const [loading, setLoading] = useState(true);
-  const [showMovieUI, setShowMovieUI] = useState(false);
-  const [suggestedMovie, setSuggestedMovie] = useState<{ title: string; desc: string } | null>(null);
-  const [isGenerating, setIsGenerating] = useState(false);
-  
-  // Photo upload states
-  const [uploadedPhotos, setUploadedPhotos] = useState<UploadedPhoto[]>([]);
-  const [uploading, setUploading] = useState(false);
-  
-  // Admin reset states
-  const [showResetUI, setShowResetUI] = useState(false);
-
+  // Check if user has already completed the flow
   useEffect(() => {
-    const fetchPoem = async () => {
-      try {
-        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-        const response = await ai.models.generateContent({
-          model: 'gemini-3-flash-preview',
-          contents: "Write a very short, sweet, 2-line Valentine's poem about a date at Carillon Point Kirkland. Keep it minimalistic and cute. NO MARKDOWN. JUST TEXT.",
-        });
-        setPoem(response.text?.trim() || "You are the one I love, My Valentine forever.");
-      } catch (error) {
-        setPoem("A day by the water, a night under stars, My heart is yours, wherever we are.");
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchPoem();
-    loadPhotos();
+    const hasVisited = localStorage.getItem(VISITED_KEY);
+    if (hasVisited === 'true') {
+      setCurrentStep(Step.SUCCESS);
+    }
   }, []);
 
-  const loadPhotos = async () => {
-    try {
-      const response = await fetch('/api/photos');
-      if (response.ok) {
-        const photos = await response.json();
-        setUploadedPhotos(photos);
-      }
-    } catch (error) {
-      console.error('Error loading photos:', error);
+  // Prevent scrolling on question pages, allow on success page
+  useEffect(() => {
+    if (currentStep === Step.SUCCESS) {
+      // Allow scrolling on success page
+      document.body.style.overflow = 'auto';
+      document.documentElement.style.overflow = 'auto';
+    } else {
+      // Prevent scrolling on question pages
+      document.body.style.overflow = 'hidden';
+      document.documentElement.style.overflow = 'hidden';
     }
-  };
 
-  const handlePhotoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+    // Cleanup
+    return () => {
+      document.body.style.overflow = 'auto';
+      document.documentElement.style.overflow = 'auto';
+    };
+  }, [currentStep]);
 
-    setUploading(true);
-    try {
-      const response = await fetch('/api/upload', {
-        method: 'POST',
-        headers: {
-          'Content-Type': file.type,
-        },
-        body: file,
-      });
+  const activeQuestionIndex = QUESTIONS.findIndex(q => q.id === currentStep);
+  const activeQuestion = activeQuestionIndex !== -1 ? QUESTIONS[activeQuestionIndex] : null;
 
-      if (response.ok) {
-        const newPhoto = await response.json();
-        setUploadedPhotos(prev => [newPhoto, ...prev]);
+  const handleAnswer = (val: string) => {
+    if (!activeQuestion) return;
+
+    const isCorrect = activeQuestion.answer.some(ans => 
+      val.toLowerCase().trim().includes(ans.toLowerCase())
+    );
+
+    if (isCorrect) {
+      setIsError(false);
+      setErrorCount(0);
+      
+      if (activeQuestionIndex < QUESTIONS.length - 1) {
+        setCurrentStep(QUESTIONS[activeQuestionIndex + 1].id);
       } else {
-        const error = await response.json();
-        console.error('Upload failed:', error);
-        alert('Upload failed. Please try again.');
+        setCurrentStep(Step.VALENTINE);
       }
-    } catch (error) {
-      console.error('Error uploading photo:', error);
-      alert('Upload failed. Please try again.');
-    } finally {
-      setUploading(false);
-      event.target.value = '';
+    } else {
+      setIsError(true);
+      setErrorCount(prev => prev + 1);
+      setTimeout(() => setIsError(false), 500);
     }
   };
 
-  const handleReset = () => {
-    if (window.confirm('⚠️ RESET EVERYTHING?\n\nThis will:\n- Clear localStorage (reset questions)\n- Require page refresh\n\nNote: Photos in Vercel Blob will stay (use "Delete All Photos" to remove them)\n\nContinue?')) {
-      localStorage.clear();
-      alert('✅ App reset! Please refresh the page.');
-    }
+  const handleYes = () => {
+    // Save that they've completed the flow
+    localStorage.setItem(VISITED_KEY, 'true');
+    setCurrentStep(Step.SUCCESS);
   };
 
-  const handleDeleteAllPhotos = async () => {
-    if (window.confirm('⚠️ DELETE ALL PHOTOS?\n\nThis will permanently delete ALL photos from Vercel Blob storage.\n\nThis CANNOT be undone!\n\nContinue?')) {
-      try {
-        const response = await fetch('/api/delete-all', {
-          method: 'DELETE',
-        });
-        
-        if (response.ok) {
-          const result = await response.json();
-          alert(`✅ Deleted ${result.deletedCount} photos!`);
-          setUploadedPhotos([]);
-          setShowResetUI(false);
-        } else {
-          alert('❌ Failed to delete photos. Check console.');
-        }
-      } catch (error) {
-        console.error('Error deleting photos:', error);
-        alert('❌ Error deleting photos. Check console.');
-      }
-    }
-  };
+  const renderContent = () => {
+    switch (currentStep) {
+      case Step.DESTINATION:
+      case Step.DINING:
+        return (
+          <div className="flex flex-col items-center justify-center min-h-screen animate-[fadeIn_0.5s_ease-out] px-4">
+            <h1 className="text-2xl md:text-3xl mb-4 opacity-40 font-handwritten">
+               Question {activeQuestionIndex + 1}:
+            </h1>
+            <div className="text-3xl md:text-4xl lg:text-5xl mb-8 md:mb-12 font-handwritten text-slate-800 text-center max-w-2xl">
+              {activeQuestion?.question}
+            </div>
+            
+            <InputBox onConfirm={handleAnswer} isError={isError} />
+            
+            {errorCount > 0 && (
+              <div className="mt-8 md:mt-12 p-4 bg-rose-50/50 border-l-4 border-rose-300 rounded-r text-slate-600 font-handwritten text-lg md:text-2xl animate-[fadeIn_0.5s_ease-out] max-w-lg">
+                <span className="font-bold text-rose-500 italic">Hint:</span> {activeQuestion?.hint}
+              </div>
+            )}
+          </div>
+        );
 
-  const generateMovie = async (genre: Genre) => {
-    setIsGenerating(true);
-    setSuggestedMovie(null);
-    try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: `List 5 different highly-rated ${genre} movies for a Valentine's date night. For each, format as: "TITLE | DESCRIPTION". One per line. No markdown or numbering.`,
-      });
-      const text = response.text?.trim() || "";
-      const movies = text.split('\n').filter(line => line.includes('|'));
-      if (movies.length > 0) {
-        const randomMovie = movies[Math.floor(Math.random() * movies.length)];
-        const [title, desc] = randomMovie.split('|').map(s => s.trim());
-        if (title && desc) {
-          setSuggestedMovie({ title, desc });
-        } else {
-          setSuggestedMovie({ title: text || "About Time", desc: "A beautiful story about love and moments." });
-        }
-      }
-    } catch (error) {
-      setSuggestedMovie({ title: "About Time", desc: "A beautiful story about love and moments." });
-    } finally {
-      setIsGenerating(false);
+      case Step.VALENTINE:
+        return <ValentineQuestion onYes={handleYes} />;
+
+      case Step.SUCCESS:
+        return <HeartSuccess />;
+
+      default:
+        return null;
     }
   };
 
   return (
-    <div className="relative w-full max-w-4xl mx-auto px-4 py-6 md:py-12">
-      {/* Hidden Admin Reset Button - Top left corner */}
-      <div className="fixed top-2 left-2 z-50">
-        <button
-          onClick={() => setShowResetUI(!showResetUI)}
-          className="text-xs text-gray-300 hover:text-gray-400 opacity-20 hover:opacity-40 transition-opacity"
-          title="Admin Reset"
-        >
-          ⚙️
-        </button>
-        {showResetUI && (
-          <div className="absolute top-8 left-0 bg-white border-2 border-red-300 p-3 rounded-lg shadow-xl w-52 z-50">
-            <p className="text-xs text-red-600 mb-2 font-sans font-bold">ADMIN PANEL</p>
-            <div className="space-y-2">
-              <button
-                onClick={handleReset}
-                className="w-full bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded text-sm font-sans transition-all"
-              >
-                🔄 Reset Questions
-              </button>
-              <button
-                onClick={handleDeleteAllPhotos}
-                className="w-full bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded text-sm font-sans transition-all"
-              >
-                🗑️ Delete All Photos
-              </button>
-            </div>
-            <p className="text-[10px] text-gray-500 mt-2 font-sans">
-              Reset = localStorage only<br/>
-              Delete = Removes all photos from Vercel Blob
-            </p>
-          </div>
-        )}
-      </div>
-
-      {/* Movie Button - Top right, close to edge */}
-      <div className="fixed top-4 right-4 z-20">
-        <button 
-          onClick={() => setShowMovieUI(!showMovieUI)}
-          className="bg-transparent border-2 border-rose-900/30 text-rose-900 hover:text-rose-700 hover:border-rose-900/60 px-3 py-1 md:px-5 md:py-1.5 rounded-full text-base md:text-xl font-handwritten transition-all transform hover:rotate-3 active:scale-95 shadow-sm"
-        >
-          Movie?
-        </button>
-        
-        {showMovieUI && (
-          <div className="absolute top-12 right-0 bg-white/95 backdrop-blur-sm border border-rose-200 p-4 rounded-xl shadow-xl w-40 md:w-48 animate-[fadeIn_0.3s_ease-out]">
-            <p className="text-xs mb-2 opacity-60 font-sans uppercase tracking-widest text-rose-900 font-bold">Pick a vibe:</p>
-            <div className="flex flex-col gap-2">
-              {(['Comedy', 'Action', 'Horror'] as Genre[]).map((genre) => (
-                <button
-                  key={genre}
-                  onClick={() => {
-                    generateMovie(genre);
-                    setShowMovieUI(false);
-                  }}
-                  disabled={isGenerating}
-                  className="text-left text-xl md:text-2xl text-rose-900 hover:text-rose-600 transition-colors disabled:opacity-30 font-handwritten"
-                >
-                  - {genre}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Main Content */}
-      <div className="relative flex flex-col items-center text-center animate-[fadeIn_1s_ease-out] mb-8 mt-4">
-        {/* Heart - Responsive sizing */}
-        <div className="relative mb-4 md:mb-8">
-          <svg 
-            viewBox="0 0 100 100" 
-            className="w-32 h-32 md:w-48 md:h-48 lg:w-64 lg:h-64 drop-shadow-xl animate-[heartArrival_1s_cubic-bezier(0.175, 0.885, 0.32, 1.275)_forwards]"
-          >
-            <path
-              d="M50 88 L43 82 C16 56 1 42 1 25 C1 11 12 1 26 1 C34 1 42 4 47 11 C52 4 60 1 68 1 C82 1 94 11 94 25 C94 42 78 56 51 82 L50 88 Z"
-              className="fill-rose-600"
-            />
-          </svg>
-        </div>
-
-        {/* Text - Responsive sizing */}
-        <div className="space-y-4 md:space-y-6">
-          <h1 className="text-4xl md:text-6xl lg:text-7xl text-rose-700 font-handwritten leading-tight drop-shadow-sm">
-            I Love You!
-          </h1>
-          
-          <div className="min-h-[80px] md:min-h-[100px] flex flex-col justify-center px-2">
-            {isGenerating ? (
-              <div className="text-lg md:text-2xl text-rose-400 animate-pulse font-handwritten">
-                Thinking of a perfect movie...
-              </div>
-            ) : suggestedMovie ? (
-              <div className="animate-[fadeIn_0.5s_ease-out]">
-                <div className="text-2xl md:text-3xl lg:text-4xl text-rose-800 font-bold font-handwritten mb-2">
-                  🎬 {suggestedMovie.title}
-                </div>
-                <div className="text-base md:text-xl lg:text-2xl text-slate-700 font-handwritten max-w-md mx-auto italic">
-                  "{suggestedMovie.desc}"
-                </div>
-                <button 
-                  onClick={() => setSuggestedMovie(null)}
-                  className="mt-4 text-sm text-rose-400 hover:text-rose-600 font-sans uppercase tracking-tighter"
-                >
-                  (Show original poem)
-                </button>
-              </div>
-            ) : !loading ? (
-              <div className="text-lg md:text-2xl lg:text-3xl text-slate-800 font-handwritten leading-relaxed max-w-xl mx-auto italic opacity-90 animate-[fadeIn_1.5s_ease-in_forwards]">
-                 {poem}
-              </div>
-            ) : null}
-          </div>
-        </div>
-      </div>
-
-      {/* Photo Wall Section - Mobile optimized */}
-      <div className="w-full mt-6 md:mt-8">
-        <div className="bg-white/60 backdrop-blur-sm border-2 border-rose-200 rounded-2xl md:rounded-3xl p-4 md:p-8 shadow-lg">
-          {/* Photo Wall Header */}
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-4 md:mb-6">
-            <h2 className="text-2xl md:text-3xl lg:text-4xl font-handwritten text-rose-900 flex items-center gap-2 md:gap-3">
-              📸 Our Memories
-              {uploadedPhotos.length > 0 && (
-                <span className="text-lg md:text-2xl text-rose-400">({uploadedPhotos.length})</span>
-              )}
-            </h2>
-            
-            {/* Upload Button */}
-            <label className="bg-rose-500 hover:bg-rose-600 text-white px-4 py-2 md:px-6 md:py-3 rounded-full text-base md:text-xl font-handwritten transition-all active:scale-95 shadow-md cursor-pointer inline-flex items-center gap-2 whitespace-nowrap">
-              {uploading ? (
-                <>
-                  <span className="animate-spin">⏳</span>
-                  <span>Uploading...</span>
-                </>
-              ) : (
-                <>
-                  <span>📷</span>
-                  <span>Add Photo</span>
-                </>
-              )}
-              <input
-                type="file"
-                accept="image/*"
-                capture="environment"
-                onChange={handlePhotoUpload}
-                className="hidden"
-                disabled={uploading}
-              />
-            </label>
-          </div>
-
-          {/* Photo Grid */}
-          {uploadedPhotos.length > 0 ? (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
-              {uploadedPhotos.map((photo, index) => (
-                <div 
-                  key={index} 
-                  className="relative group aspect-square animate-[fadeIn_0.5s_ease-out]"
-                  style={{ animationDelay: `${index * 0.1}s` }}
-                >
-                  <img 
-                    src={photo.url} 
-                    alt={`Memory ${index + 1}`}
-                    className="w-full h-full object-cover rounded-lg md:rounded-xl shadow-md border-3 md:border-4 border-white group-hover:border-rose-300 transition-all group-hover:scale-105 group-hover:shadow-xl"
-                  />
-                  {/* Polaroid-style date stamp */}
-                  <div className="absolute bottom-2 left-2 right-2 bg-white/90 backdrop-blur-sm px-2 py-1 rounded text-xs font-sans text-slate-600 text-center opacity-0 group-hover:opacity-100 transition-opacity">
-                    {new Date(photo.uploadedAt).toLocaleDateString()}
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-12 md:py-16">
-              <div className="text-5xl md:text-6xl mb-4">💕</div>
-              <p className="text-xl md:text-2xl text-slate-400 font-handwritten">
-                No photos yet! Add your first memory
-              </p>
-            </div>
-          )}
-        </div>
-      </div>
+    <div className="min-h-screen">
+      <NotebookPaper>
+        {renderContent()}
+      </NotebookPaper>
 
       <style>{`
-        @keyframes heartArrival {
-          0% { 
-            transform: scale(0) rotate(-45deg); 
-            opacity: 0; 
-          }
-          100% { 
-            transform: scale(1) rotate(0deg); 
-            opacity: 1; 
-          }
-        }
         @keyframes fadeIn {
           from { opacity: 0; transform: translateY(10px); }
           to { opacity: 1; transform: translateY(0); }
@@ -344,3 +121,5 @@ export const HeartSuccess: React.FC = () => {
     </div>
   );
 };
+
+export default App;
