@@ -1,5 +1,6 @@
 
 export enum Step {
+  GAME = 'GAME',
   DESTINATION = 'DESTINATION',
   DINING = 'DINING',
   VALENTINE = 'VALENTINE',

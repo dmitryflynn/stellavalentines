@@ -3,10 +3,16 @@ import { Step, Question } from './types';
 
 export const QUESTIONS: Question[] = [
   {
+    id: Step.GAME,
+    question: "What game should we play?",
+    answer: ["return of the obra dinn", "obra dinn", "the return of the obra dinn"],
+    hint: "It's a mystery detective game about a ship... 'Return of the _____ _____'."
+  },
+  {
     id: Step.DESTINATION,
     question: "Where's destination 1?",
-    answer: ["carillon point kirkland", "carillon point", "kirkland carillon point"],
-    hint: "It's a beautiful spot on the water in Kirkland... starts with a 'C'."
+    answer: ["marina park", "marina park kirkland", "kirkland marina park"],
+    hint: "It's a beautiful waterfront park in Kirkland... starts with an 'M'."
   },
   {
     id: Step.DINING,
